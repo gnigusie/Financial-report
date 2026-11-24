@@ -13,6 +13,8 @@ const STATUS_LABELS = {
   unchanged: "Already ingested",
   failed: "Failed",
 };
+const TITLE_PATTERN = /^\s*(?:#{1,6}\s+(.+?)|\*\*(.+?)\*\*:?)\s*$/;
+const BULLET_PATTERN = /^\s*[*-]\s+/;
 
 const EXTRA_STYLES = `
 [hidden] { display: none !important; }
@@ -64,32 +66,43 @@ const EXTRA_STYLES = `
 .rq-chip button { padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
 .rq-chat-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .rq-chat-panel .cx { flex: 1; min-height: 0; }
+.rq-title { margin: 12px 0 4px; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.rq-title:first-child { margin-top: 0; }
+.cx-summary { text-align: justify; hyphens: auto; }
+.cx-summary .rq-title { text-align: left; }
+.rq-gap { height: 8px; }
+.rq-bullet { position: relative; padding-left: 16px; }
+.rq-bullet::before { content: "\\2022"; position: absolute; left: 4px; }
 .rq-ins { display: grid; gap: 12px; width: 100%; }
 .rq-ins-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #667085; }
 .rq-ins-tools, .rq-ins-actions { display: inline-flex; gap: 8px; align-items: center; }
 .rq-ins-card { padding: 14px 16px; border: 1px solid #e4e7ec; border-radius: 10px; background: #fff; cursor: pointer; }
 .rq-ins-card.sel { border-color: #2f5bea; box-shadow: 0 0 0 2px rgba(47,91,234,.12); }
-.rq-ins-card h3 { margin: 0 0 6px; font-size: 14px; }
-.rq-ins-card p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: #344054; }
+.rq-ins-card h3 { margin: 0 0 6px; font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
+.rq-ins-card p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: #344054; text-align: justify; hyphens: auto; }
 .rq-ins-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px; border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; color: #2f5bea; font-size: 12px; font-weight: 600; cursor: pointer; }
 .rq-ins-btn:disabled { color: #98a2b3; cursor: not-allowed; }
 .cx-bar .rq-ins-btn { margin-left: auto; }
-.rq-entities { width: 300px; flex: none; overflow-y: auto; padding: 16px; border: 1px solid #e4e7ec; border-radius: 12px; background: #fff; box-shadow: 0 1px 3px rgba(16,24,40,.06); }
-.rq-entities-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.rq-entities-head h3 { margin: 0; font-size: 14px; font-weight: 600; }
-.rq-entities-close { border: 0; background: none; color: #98a2b3; font-size: 20px; line-height: 1; cursor: pointer; }
-.rq-entity { padding: 10px 0; border-top: 1px solid #f2f4f7; }
-.rq-entity-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
-.rq-entity-meta { margin-top: 4px; font-size: 12px; color: #667085; }
-@media (max-width: 900px) { .rq-ask-row { flex-direction: column; } .rq-entities { width: auto; } }
+.rq-chart { margin: 4px 0 12px; }
+.rq-bars { display: grid; gap: 10px; }
+.rq-bar-group { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; align-items: center; font-size: 12px; }
+.rq-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #344054; }
+.rq-bar-tracks { display: grid; gap: 4px; }
+.rq-bar-row { display: flex; align-items: center; gap: 8px; }
+.rq-bar-track { flex: 1; height: 10px; overflow: hidden; border-radius: 100px; background: #f2f4f7; }
+.rq-bar-fill { height: 100%; border-radius: 100px; }
+.rq-bar-value { min-width: 44px; text-align: right; color: #101828; font-variant-numeric: tabular-nums; }
+.rq-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 4px; font-size: 12px; color: #667085; }
+.rq-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.rq-legend i, .rq-pie-list i { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+.rq-pie { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; }
+.rq-pie-list { display: grid; flex: 1; min-width: 160px; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
+.rq-pie-list li { display: flex; align-items: center; gap: 6px; }
+.rq-pie-list span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rq-pie-list em { color: #667085; font-style: normal; }
+.rq-line svg { display: block; }
 @media (max-width: 700px) { .rq-shell .form-stack { grid-template-columns: minmax(0, 1fr); } .rq-head { gap: 16px; padding: 0 16px; } .rq-head p { display: none; } .rq-main { padding: 16px 12px; } .rq-shell .panel-body { padding: 18px; } }
 `;
-
-const PLUG_ICON = (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z" />
-  </svg>
-);
 
 const statusMessage = (status, result) =>
   status === 502 ? UNAVAILABLE_ERROR
@@ -102,7 +115,7 @@ async function request(path, options = {}) {
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...options,
-      headers: { ...(typeof options.body === "string" ? { "Content-Type": "application/json" } : {}), ...options.headers },
+      headers: { "ngrok-skip-browser-warning": "true", ...(typeof options.body === "string" ? { "Content-Type": "application/json" } : {}), ...options.headers },
     });
   } catch {
     throw new Error(CONNECTION_ERROR);
@@ -150,6 +163,25 @@ function findReportLink(result) {
 
 function isAccepted(file) {
   return ACCEPTED_SUFFIXES.some((suffix) => file.name.toLowerCase().endsWith(suffix));
+}
+
+function stripMarks(text) {
+  return String(text || "").replace(/\*+/g, "").replace(/__/g, "");
+}
+
+function AnswerText({ text }) {
+  const lines = String(text || "").split("\n");
+  return (
+    <div className="cx-summary">
+      {lines.map((line, index) => {
+        if (!line.trim()) return <div key={index} className="rq-gap" />;
+        const titleMatch = line.match(TITLE_PATTERN);
+        if (titleMatch) return <div key={index} className="rq-title">{stripMarks(titleMatch[1] || titleMatch[2])}</div>;
+        const isBullet = BULLET_PATTERN.test(line);
+        return <div key={index} className={isBullet ? "rq-bullet" : undefined}>{stripMarks(line.replace(BULLET_PATTERN, ""))}</div>;
+      })}
+    </div>
+  );
 }
 
 async function waitForIngest(onUpdate) {
@@ -209,6 +241,7 @@ function DocumentsPanel() {
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState("");
   const [live, setLive] = useState("");
+  const inputRef = useRef(null);
 
   useEffect(() => {
     if (!busy) {
@@ -224,7 +257,7 @@ function DocumentsPanel() {
         if (baseline === null) baseline = info.seq;
         else if (info.seq > baseline && info.message) setLive(info.message);
       } catch {
-        /* keep the last line */
+        return;
       }
     }
     poll();
@@ -234,7 +267,6 @@ function DocumentsPanel() {
       clearInterval(timer);
     };
   }, [busy]);
-  const inputRef = useRef(null);
 
   function addFiles(list) {
     const accepted = Array.from(list).filter(isAccepted);
@@ -444,7 +476,254 @@ function SettingsPanel() {
   );
 }
 
-function InsightFeed({ templateFile, onSelect, onConnect }) {
+const CHART_COLORS = ["#2f5bea", "#12b76a", "#f79009", "#d92d20", "#7a5af8", "#0ba5ec", "#ee46bc", "#667085"];
+const formatNumber = (value) => Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+function ChartLegend({ items }) {
+  return (
+    <div className="rq-legend">
+      {items.map((item, index) => (
+        <span key={item.name}><i style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} />{item.name}</span>
+      ))}
+    </div>
+  );
+}
+
+function BarChart({ chart }) {
+  const largest = Math.max(1, ...chart.series.flatMap((series) => series.values.map((value) => Math.abs(value))));
+  return (
+    <div className="rq-bars">
+      {chart.labels.map((label, position) => (
+        <div key={label} className="rq-bar-group">
+          <div className="rq-bar-label" title={label}>{label}</div>
+          <div className="rq-bar-tracks">
+            {chart.series.map((series, seriesIndex) => (
+              <div key={series.name} className="rq-bar-row">
+                <div className="rq-bar-track">
+                  <div className="rq-bar-fill" style={{ width: `${(Math.abs(series.values[position]) / largest) * 100}%`, background: CHART_COLORS[seriesIndex % CHART_COLORS.length] }} />
+                </div>
+                <span className="rq-bar-value">{formatNumber(series.values[position])}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      {chart.series.length > 1 && <ChartLegend items={chart.series} />}
+    </div>
+  );
+}
+
+function ColumnChart({ chart }) {
+  const width = 320, height = 170, margin = 28;
+  const largest = Math.max(1, ...chart.series.flatMap((series) => series.values));
+  const groupWidth = (width - 2 * margin) / chart.labels.length;
+  const barWidth = Math.min(28, (groupWidth - 8) / chart.series.length);
+  return (
+    <div className="rq-line">
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img">
+        <line x1={margin} y1={height - margin} x2={width - margin} y2={height - margin} stroke="#d0d5dd" />
+        {chart.labels.map((label, group) => {
+          const start = margin + group * groupWidth + (groupWidth - barWidth * chart.series.length) / 2;
+          return (
+            <g key={label}>
+              {chart.series.map((series, seriesIndex) => {
+                const barHeight = (series.values[group] / largest) * (height - 2 * margin - 10);
+                return (
+                  <rect key={series.name} x={start + seriesIndex * barWidth} y={height - margin - barHeight} width={barWidth - 2} height={barHeight} rx="2" fill={CHART_COLORS[seriesIndex % CHART_COLORS.length]}>
+                    <title>{`${label}, ${series.name}: ${formatNumber(series.values[group])}`}</title>
+                  </rect>
+                );
+              })}
+              <text x={margin + group * groupWidth + groupWidth / 2} y={height - 10} textAnchor="middle" fontSize="10" fill="#667085">{String(label).slice(0, 10)}</text>
+            </g>
+          );
+        })}
+      </svg>
+      {chart.series.length > 1 && <ChartLegend items={chart.series} />}
+    </div>
+  );
+}
+
+function PieChart({ chart }) {
+  const values = chart.series[0].values;
+  const total = values.reduce((sum, value) => sum + value, 0);
+  const point = (angle, radius) => [60 + radius * Math.cos(angle), 60 + radius * Math.sin(angle)];
+  let angle = -Math.PI / 2;
+  const slices = values.map((value, index) => {
+    const sweep = Math.min((value / total) * 2 * Math.PI, 2 * Math.PI - 0.0001);
+    const start = angle;
+    angle += sweep;
+    const [x1, y1] = point(start, 52);
+    const [x2, y2] = point(angle, 52);
+    const [x3, y3] = point(angle, 30);
+    const [x4, y4] = point(start, 30);
+    const large = sweep > Math.PI ? 1 : 0;
+    return { index, path: `M${x1} ${y1}A52 52 0 ${large} 1 ${x2} ${y2}L${x3} ${y3}A30 30 0 ${large} 0 ${x4} ${y4}Z` };
+  });
+  return (
+    <div className="rq-pie">
+      <svg viewBox="0 0 120 120" width="150" height="150" role="img" aria-label={chart.series[0].name}>
+        {slices.map((slice) => <path key={slice.index} d={slice.path} fill={CHART_COLORS[slice.index % CHART_COLORS.length]} />)}
+      </svg>
+      <ul className="rq-pie-list">
+        {chart.labels.map((label, index) => (
+          <li key={label}>
+            <i style={{ background: CHART_COLORS[index % CHART_COLORS.length] }} />
+            <span title={label}>{label}</span>
+            <b>{formatNumber(values[index])}</b>
+            <em>{Math.round((values[index] / total) * 100)}%</em>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function LineChart({ chart }) {
+  const width = 320;
+  const height = 150;
+  const margin = 30;
+  const all = chart.series.flatMap((series) => series.values);
+  const low = Math.min(...all);
+  const high = Math.max(...all);
+  const span = high - low || 1;
+  const x = (position) => margin + (position * (width - 2 * margin)) / (chart.labels.length - 1);
+  const y = (value) => height - margin - ((value - low) / span) * (height - 2 * margin);
+  return (
+    <div className="rq-line">
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img">
+        <line x1={margin} y1={height - margin} x2={width - margin} y2={height - margin} stroke="#d0d5dd" />
+        {chart.series.map((series, seriesIndex) => (
+          <g key={series.name}>
+            <polyline fill="none" stroke={CHART_COLORS[seriesIndex % CHART_COLORS.length]} strokeWidth="2" points={series.values.map((value, position) => `${x(position)},${y(value)}`).join(" ")} />
+            {series.values.map((value, position) => (
+              <circle key={position} cx={x(position)} cy={y(value)} r="3" fill={CHART_COLORS[seriesIndex % CHART_COLORS.length]}>
+                <title>{`${chart.labels[position]}: ${formatNumber(value)}`}</title>
+              </circle>
+            ))}
+          </g>
+        ))}
+        {chart.labels.map((label, position) => (
+          (position === 0 || position === chart.labels.length - 1 || chart.labels.length <= 6)
+            ? <text key={label} x={x(position)} y={height - 10} textAnchor="middle" fontSize="10" fill="#667085">{label}</text>
+            : null
+        ))}
+        <text x="4" y={margin} fontSize="10" fill="#667085">{formatNumber(high)}</text>
+        <text x="4" y={height - margin} fontSize="10" fill="#667085">{formatNumber(low)}</text>
+      </svg>
+      {chart.series.length > 1 && <ChartLegend items={chart.series} />}
+    </div>
+  );
+}
+
+function HistogramChart({ chart }) {
+  const values = chart.series[0].values;
+  const low = Math.min(...values);
+  const high = Math.max(...values);
+  const bins = Math.min(6, Math.max(4, Math.round(Math.sqrt(values.length))));
+  const step = (high - low) / bins || 1;
+  const counts = new Array(bins).fill(0);
+  values.forEach((value) => {
+    counts[Math.min(bins - 1, Math.floor((value - low) / step))] += 1;
+  });
+  const short = (value) => Number(value).toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 1 });
+  const labels = counts.map((_, index) => `${short(low + index * step)}-${short(low + (index + 1) * step)}`);
+  return <ColumnChart chart={{ labels, series: [{ name: "Entries", values: counts }] }} />;
+}
+
+function candidateTypes(chart) {
+  const count = chart.labels.length;
+  const multi = chart.series.length > 1;
+  const allPositive = chart.series.every((series) => series.values.every((value) => value >= 0));
+  const timeLike = chart.labels.every((label) => /^(19|20)\d\d([-/ ]?(Q[1-4]|H[12]|\d{1,2}))?$/i.test(String(label).trim()));
+  if (chart.type === "line" || timeLike) return ["line"];
+  if (!multi && allPositive && count <= 6) return count >= 5 ? ["pie", "histogram", "line", "column"] : ["pie", "line", "column"];
+  if (!multi && count >= 5) return ["histogram", "line", "bar"];
+  return ["line", "column"];
+}
+
+function hasData(chart) {
+  if (!chart || !Array.isArray(chart.labels) || !Array.isArray(chart.series)) return false;
+  if (chart.labels.length < 2 || chart.series.length === 0) return false;
+  const valid = chart.series.every((series) => Array.isArray(series.values) && series.values.length === chart.labels.length && series.values.every((value) => Number.isFinite(value)));
+  return valid && chart.series.some((series) => series.values.some((value) => value !== 0));
+}
+
+function assignTypes(cards) {
+  const barLike = new Set(["bar", "column"]);
+  const used = {};
+  const result = new Map();
+  let barUsed = false;
+  for (const card of cards) {
+    if (!hasData(card.chart)) continue;
+    const options = candidateTypes(card.chart).filter((kind) => !(barLike.has(kind) && barUsed));
+    const pick = options.reduce((best, kind) => ((used[kind] || 0) < (used[best] || 0) ? kind : best), options[0]);
+    used[pick] = (used[pick] || 0) + 1;
+    if (barLike.has(pick)) barUsed = true;
+    result.set(card.id, pick);
+  }
+  return result;
+}
+
+function Chart({ chart, kind }) {
+  if (!chart || !chart.labels || !chart.series || chart.labels.length < 2) return null;
+  const type = kind || candidateTypes(chart)[0];
+  return (
+    <div className="rq-chart">
+      {type === "pie" ? <PieChart chart={chart} />
+        : type === "line" ? <LineChart chart={chart} />
+        : type === "histogram" ? <HistogramChart chart={chart} />
+        : type === "column" ? <ColumnChart chart={chart} />
+        : <BarChart chart={chart} />}
+    </div>
+  );
+}
+
+const DEEP_CSS = `
+.rq-ins-actions { display: flex; flex-wrap: wrap; }
+.rq-deep { flex: 0 0 100%; margin-top: 8px; padding: 12px 14px; border: 1px solid #e4e7ec; border-radius: 8px; background: #f9fafb; font-size: 13px; line-height: 1.6; cursor: default; }
+.rq-deep-text { white-space: pre-wrap; color: #344054; }
+`;
+
+function DeepSearch({ title }) {
+  const [state, setState] = useState({ open: false, busy: false, text: "", error: "" });
+
+  async function run(event) {
+    event.stopPropagation();
+    if (state.busy) return;
+    if (state.text) {
+      setState((previous) => ({ ...previous, open: !previous.open }));
+      return;
+    }
+    setState({ open: true, busy: true, text: "", error: "" });
+    try {
+      const form = new FormData();
+      form.append("question", `Give a detailed analysis of ${title}. Cover the key figures, the highest and lowest values, how they compare, any change over time, and what the report says about the reasons.`);
+      const result = await request("/query", { method: "POST", body: form });
+      const text = (result && (result.summary || result.answer)) || "";
+      setState({ open: true, busy: false, text, error: text ? "" : (result && result.error) || "No answer was found for this topic." });
+    } catch (caught) {
+      setState({ open: true, busy: false, text: "", error: caught.message });
+    }
+  }
+
+  const label = state.busy ? "Searching" : state.text ? (state.open ? "Hide deep search" : "Show deep search") : "Deep search";
+  return (
+    <>
+      <style>{DEEP_CSS}</style>
+      <button type="button" className="rq-ins-btn" disabled={state.busy} onClick={run}>{label}</button>
+      {state.open && (
+        <div className="rq-deep" onClick={(event) => event.stopPropagation()}>
+          {state.busy && <div className="cx-thinking"><span className="cx-wave"><i /><i /><i /><i /></span>Searching the data and the report</div>}
+          {!state.busy && state.error && <div className="cx-note">{state.error}</div>}
+          {!state.busy && !state.error && <div className="rq-deep-text">{state.text}</div>}
+        </div>
+      )}
+    </>
+  );
+}
+
+function InsightFeed({ templateFile }) {
   const [cards, setCards] = useState(null);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
@@ -480,25 +759,25 @@ function InsightFeed({ templateFile, onSelect, onConnect }) {
   if (error && !cards) return <div className="cx-note">{error}</div>;
   if (!cards) return <div className="cx-empty">Detecting insights</div>;
   if (cards.length === 0) return <div className="cx-empty">Upload documents, then ask a question.</div>;
-  const allText = cards.map((card) => `${card.title}. ${card.summary}`).join(" ");
+  const shown = assignTypes(cards);
   return (
     <div className="rq-ins">
       <div className="rq-ins-head">
         <span>{cards.length} insights detected</span>
         <span className="rq-ins-tools">
-          <button type="button" className="rq-ins-btn" title="Connect entity resolver to all insights" onClick={() => onConnect(allText)}>{PLUG_ICON} Entities</button>
           <button type="button" className="rq-ins-btn" onClick={load}>Refresh</button>
           <button type="button" className="rq-ins-btn" disabled={busyId !== ""} onClick={() => makeReport(cards.map((card) => card.id))}>{busyId === "all" ? "Building" : "Full report PDF"}</button>
         </span>
       </div>
       {error && <div className="cx-note">{error}</div>}
       {cards.map((card) => (
-        <div key={card.id} className={`rq-ins-card${selectedId === card.id ? " sel" : ""}`} onClick={() => { setSelectedId(card.id); onSelect(`${card.title}. ${card.summary}`); }}>
-          <h3>{card.title}</h3>
-          <p>{card.summary}</p>
+        <div key={card.id} className={`rq-ins-card${selectedId === card.id ? " sel" : ""}`} onClick={() => setSelectedId(card.id)}>
+          <h3>{stripMarks(card.title)}</h3>
+          <p>{stripMarks(card.summary)}</p>
+          {shown.has(card.id) && <Chart chart={card.chart} kind={shown.get(card.id)} />}
           <div className="rq-ins-actions">
             <button type="button" className="rq-ins-btn" disabled={busyId !== ""} onClick={(event) => { event.stopPropagation(); makeReport([card.id]); }}>{busyId === card.id ? "Building" : "Generate PDF"}</button>
-            <button type="button" className="rq-ins-btn" title="Connect entity resolver to this topic" onClick={(event) => { event.stopPropagation(); setSelectedId(card.id); onConnect(`${card.title}. ${card.summary}`); }}>{PLUG_ICON} Entities</button>
+            <DeepSearch title={stripMarks(card.title)} />
           </div>
         </div>
       ))}
@@ -506,48 +785,13 @@ function InsightFeed({ templateFile, onSelect, onConnect }) {
   );
 }
 
-function EntityPanel({ text, open, onClose }) {
-  const [entities, setEntities] = useState([]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    let active = true;
-    request("/entities").then((result) => { if (active) setEntities(result.entities || []); }).catch(() => {});
-    return () => { active = false; };
-  }, [open, text]);
-
-  if (!open) return null;
-  const lowered = (text || "").toLowerCase();
-  const matches = entities.filter((entity) => entity.aliases.some((alias) => {
-    const escaped = alias.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp("(^|[^a-z0-9])" + escaped + "([^a-z0-9]|$)").test(lowered);
-  }));
-  return (
-    <aside className="rq-entities">
-      <div className="rq-entities-head">
-        <h3>Entities</h3>
-        <button type="button" className="rq-entities-close" aria-label="Disconnect entity resolver" onClick={onClose}>×</button>
-      </div>
-      {matches.length === 0 && <div className="rq-entity-meta">No meaningful entities found for this topic.</div>}
-      {matches.map((entity) => (
-        <div key={entity.name} className="rq-entity">
-          <div className="rq-entity-top"><strong>{entity.name}</strong><span className="rq-badge">{entity.type}</span></div>
-          <div className="rq-entity-meta">Found in {entity.mentions} places</div>
-          {entity.aliases.length > 1 && <div className="rq-entity-meta">Also written as: {entity.aliases.slice(1, 5).join(", ")}</div>}
-        </div>
-      ))}
-    </aside>
-  );
-}
-
-function ChatPanel({ onFocus, onConnect }) {
+function ChatPanel() {
   const [question, setQuestion] = useState("");
   const [templateFile, setTemplateFile] = useState(null);
   const [messages, setMessages] = useState([]);
   const [busy, setBusy] = useState(false);
   const templateRef = useRef(null);
   const endRef = useRef(null);
-  const lastAnswer = [...messages].reverse().map((item) => item.result && item.result.summary).find(Boolean) || "";
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -560,7 +804,6 @@ function ChatPanel({ onFocus, onConnect }) {
     let outcome;
     try {
       outcome = { result: await sendQuery(text, templateFile) };
-      if (outcome.result && outcome.result.summary) onFocus(outcome.result.summary);
     } catch (caught) {
       outcome = { error: caught.message };
     }
@@ -570,17 +813,16 @@ function ChatPanel({ onFocus, onConnect }) {
 
   return (
     <section className="panel rq-chat-panel">
-      <div className="panel-heading"><h2>Ask</h2></div>
+      <div className="panel-heading"><h2>Report</h2></div>
       <div className="cx">
         <div className="cx-bar">
           <button type="button" onClick={() => templateRef.current.click()}>Attach report template</button>
           <input ref={templateRef} type="file" hidden accept=".pdf" onChange={(event) => { setTemplateFile(event.target.files[0] || null); event.target.value = ""; }} />
           {templateFile && <span className="rq-chip"><span>{templateFile.name}</span><button type="button" aria-label="Remove template" onClick={() => setTemplateFile(null)}>×</button></span>}
-          <button type="button" className="rq-ins-btn" title="Connect entity resolver to the last answer" disabled={!lastAnswer} onClick={() => onConnect(lastAnswer)}>{PLUG_ICON} Entities</button>
         </div>
         <div className="cx-scroll">
           <div className="cx-inner">
-            {messages.length === 0 && <InsightFeed templateFile={templateFile} onSelect={onFocus} onConnect={onConnect} />}
+            {messages.length === 0 && <InsightFeed templateFile={templateFile} />}
             {messages.map((message, index) => {
               const reportLink = findReportLink(message.result);
               const summaryText = message.result && (message.result.summary || message.result.answer);
@@ -592,7 +834,7 @@ function ChatPanel({ onFocus, onConnect }) {
                     {message.error && <div className="cx-note">{message.error}</div>}
                     {message.result?.error && <div className="cx-note">{message.result.error}</div>}
                     {message.result?.report_error && <div className="cx-note">{message.result.report_error}</div>}
-                    {summaryText && <div className="cx-summary" style={{ whiteSpace: "pre-wrap" }}>{summaryText}</div>}
+                    {summaryText && <AnswerText text={summaryText} />}
                     {reportLink && <div className="cx-actions"><button type="button" onClick={() => window.open(reportLink, "_blank", "noopener")}>Open report PDF</button></div>}
                   </div>
                 </div>
@@ -623,8 +865,8 @@ function ChatPanel({ onFocus, onConnect }) {
 
 export default function App() {
   const [tab, setTab] = useState("ask");
-  const [entity, setEntity] = useState({ open: false, text: "" });
-  const tabs = [["ask", "Ask"], ["documents", "Documents"], ["settings", "Settings"]];
+  const tabs = [["ask", "Report"], ["documents", "Documents"], ["settings", "Settings"]];
+
   return (
     <>
       <style>{EXTRA_STYLES}</style>
@@ -641,11 +883,7 @@ export default function App() {
         <main className="rq-main">
           <div className="rq-pane rq-ask" hidden={tab !== "ask"}>
             <div className="rq-ask-row">
-              <ChatPanel
-                onFocus={(value) => setEntity((previous) => ({ ...previous, text: value }))}
-                onConnect={(value) => setEntity({ open: true, text: value })}
-              />
-              <EntityPanel text={entity.text} open={entity.open} onClose={() => setEntity((previous) => ({ ...previous, open: false }))} />
+              <ChatPanel />
             </div>
           </div>
           <div className="rq-pane" hidden={tab !== "documents"}><DocumentsPanel /></div>
