@@ -102,7 +102,7 @@ async function request(path, options = {}) {
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...options,
-      headers: { ...(typeof options.body === "string" ? { "Content-Type": "application/json" } : {}), ...options.headers },
+      headers: { "ngrok-skip-browser-warning": "true", ...(typeof options.body === "string" ? { "Content-Type": "application/json" } : {}), ...options.headers },
     });
   } catch {
     throw new Error(CONNECTION_ERROR);

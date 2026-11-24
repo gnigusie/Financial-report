@@ -1,0 +1,9 @@
+
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://adjectival-multisaccate-meghan.ngrok-free.dev/:path*"
+    }
+  ]
+}
